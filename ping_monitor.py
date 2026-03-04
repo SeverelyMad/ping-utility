@@ -1,1 +1,24 @@
-import os\nimport discord\nimport platform\nimport subprocess\nimport socket\nimport time\n\n# Discord webhook URL\nWEBHOOK_URL = 'YOUR_WEBHOOK_URL'\n\nasync def send_discord_message(content):\n    async with discord.Client() as client:\n        await client.login('YOUR_BOT_TOKEN')\n        channel = await client.fetch_channel('YOUR_CHANNEL_ID')\n        await channel.send(content)\n\ndef ping(host):\n    command = ['ping', '-c', '1', host] if platform.system() != 'Windows' else ['ping', '-n', '1', host]\n    return subprocess.call(command) == 0\n\ndef get_ip_address(host):\n    return socket.gethostbyname(host)\n\ndef main():\n    target_host = 'example.com'  # Specify the host to ping\n    while True:\n        if ping(target_host):\n            message = f'{target_host} is reachable.'\n        else:\n            message = f'{target_host} is not reachable. IP: {get_ip_address(target_host)}'\n            # Send the message to Discord\n            # You can uncomment below if you setup aiohttp to use it\n            # await send_discord_message(message)\n            print(message)\n        time.sleep(60)  # Wait for 1 minute before the next ping\n\nif __name__ == '__main__':\n    main()
+import os
+import requests
+import time
+
+# Function to ping the given IP address
+def ping_ip(ip_address):
+    response = os.system('ping -c 1 ' + ip_address)
+    return response == 0
+
+# Function to send message to Discord webhook
+def send_discord_message(webhook_url, ip_address, is_up):
+    message = f'IP {ip_address} is {'up' if is_up else 'down'}.'
+    data = {'content': message}
+    requests.post(webhook_url, json=data)
+
+# Main function to run the ping monitor
+if __name__ == '__main__':
+    ip_address = input('Please enter the IP address to monitor: ')
+    webhook_url = input('Please enter your Discord webhook URL: ')
+
+    while True:
+        is_up = ping_ip(ip_address)
+        send_discord_message(webhook_url, ip_address, is_up)
+        time.sleep(60) # Wait for 60 seconds before the next ping
