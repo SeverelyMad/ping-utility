@@ -1,24 +1,46 @@
-import os
 import requests
+import ping3
 import time
+from datetime import datetime
 
-# Function to ping the given IP address
-def ping_ip(ip_address):
-    response = os.system('ping -c 1 ' + ip_address)
-    return response == 0
+def get_geolocation(ip):
+    response = requests.get(f"http://ip-api.com/json/{ip}")
+    return response.json() if response.status_code == 200 else {}
 
-# Function to send message to Discord webhook
-def send_discord_message(webhook_url, ip_address, is_up):
-    message = f'IP {ip_address} is {'up' if is_up else 'down'}.'
-    data = {'content': message}
-    requests.post(webhook_url, json=data)
+def send_discord_notification(webhook_url, content):
+    embed = {
+        "embeds": [{
+            "title": "Ping Status Update",
+            "description": content,
+            "timestamp": datetime.utcnow().isoformat(),
+            "color": 5814783,  # Example color
+        }]
+    }
+    requests.post(webhook_url, json=embed)
 
-# Main function to run the ping monitor
-if __name__ == '__main__':
-    ip_address = input('Please enter the IP address to monitor: ')
-    webhook_url = input('Please enter your Discord webhook URL: ')
+def main():
+    ip_address = input("Enter the IP address to monitor: ")
+    webhook_url = input("Enter your Discord webhook URL: ")
+    previous_status = None
 
     while True:
-        is_up = ping_ip(ip_address)
-        send_discord_message(webhook_url, ip_address, is_up)
-        time.sleep(60) # Wait for 60 seconds before the next ping
+        status = ping3.ping(ip_address)
+        if status is None:
+            current_status = "Offline"
+        else:
+            current_status = "Online"
+
+        if current_status != previous_status:
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            location = get_geolocation(ip_address)
+            location_info = f"Location: {location.get('city', 'Unknown')}, {location.get('country', 'Unknown')}" if location else "Location: Unknown"
+            message = f"{timestamp} - {ip_address} is now {current_status}. {location_info}"
+
+            print(message)  # For console output
+            send_discord_notification(webhook_url, message)
+            previous_status = current_status
+
+        time.sleep(5)  # Check every 5 seconds
+
+if __name__ == "__main__":
+    main()
